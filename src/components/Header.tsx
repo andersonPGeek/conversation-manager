@@ -40,6 +40,12 @@ const Header: React.FC<HeaderProps> = ({
     onSearch(searchQuery);
   };
 
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    onSearch(value); // Search as you type
+  };
+
   const handleFilterByTag = (tagId: string | null) => {
     setActiveFilter(tagId);
     onFilterByTag(tagId);
@@ -62,7 +68,7 @@ const Header: React.FC<HeaderProps> = ({
             placeholder="Buscar conversas..."
             className="pl-10 w-full"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchInputChange}
           />
         </form>
 

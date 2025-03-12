@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { User, MessageSquare, Tag, Send, Plus } from "lucide-react";
 import { Avatar } from "../ui/avatar";
 import { Button } from "../ui/button";
@@ -111,10 +111,27 @@ const ConversationDialog: React.FC<ConversationDialogProps> = ({
 
   const handleSendMessage = () => {
     if (newMessage.trim()) {
-      // In a real app, this would add the message to the conversation
-      // and potentially send it via an API
-      console.log("Sending message:", newMessage);
+      // Add the message to the conversation
+      const newMsg = {
+        id: `msg-${Date.now()}`,
+        content: newMessage,
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        isOutgoing: true,
+      };
+
+      conversation.messages = [...conversation.messages, newMsg];
       setNewMessage("");
+
+      // Scroll to bottom of message container
+      setTimeout(() => {
+        const container = document.getElementById("message-container");
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }, 100);
     }
   };
 
@@ -128,6 +145,30 @@ const ConversationDialog: React.FC<ConversationDialogProps> = ({
     onSave(updatedConversation);
     onClose();
   };
+
+  // Normalize tag names for comparison (lowercase and remove special characters)
+  const normalizeTagName = (name: string) => {
+    return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  };
+
+  // Find matching tags between conversation tags and available tags
+  useEffect(() => {
+    if (conversation.tags && availableTags) {
+      // Map conversation tags to available tags with the same name (normalized)
+      const mappedTags = conversation.tags.map((convTag) => {
+        // Try to find a matching tag in availableTags
+        const matchingTag = availableTags.find(
+          (availTag) =>
+            normalizeTagName(availTag.name) === normalizeTagName(convTag.name),
+        );
+
+        // If found, use the available tag, otherwise use the conversation tag
+        return matchingTag || convTag;
+      });
+
+      setSelectedTags(mappedTags);
+    }
+  }, [conversation.tags, availableTags]);
 
   const handleAddTag = (tagId: string) => {
     const tagToAdd = availableTags.find((tag) => tag.id === tagId);
@@ -195,7 +236,10 @@ const ConversationDialog: React.FC<ConversationDialogProps> = ({
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            <div
+              className="flex-1 overflow-y-auto p-3 space-y-3"
+              id="message-container"
+            >
               {conversation.messages.map((message) => (
                 <div
                   key={message.id}
@@ -218,21 +262,23 @@ const ConversationDialog: React.FC<ConversationDialogProps> = ({
             </div>
 
             <div className="p-3 border-t mt-auto">
-              <div className="flex gap-2">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}
+                className="flex gap-2"
+              >
                 <Textarea
                   placeholder="Digite sua mensagem..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   className="min-h-[60px] resize-none"
                 />
-                <Button
-                  size="icon"
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim()}
-                >
+                <Button type="submit" size="icon" disabled={!newMessage.trim()}>
                   <Send className="h-4 w-4" />
                 </Button>
-              </div>
+              </form>
             </div>
           </TabsContent>
 
@@ -344,7 +390,7 @@ const ConversationDialog: React.FC<ConversationDialogProps> = ({
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a coluna" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-[200px] overflow-y-auto">
                   {availableColumns.map((column) => (
                     <SelectItem key={column.id} value={column.id}>
                       {column.title}
@@ -357,24 +403,30 @@ const ConversationDialog: React.FC<ConversationDialogProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium">Etiquetas</label>
               <div className="flex flex-wrap gap-2 mb-2">
-                {selectedTags.map((tag) => (
-                  <div
-                    key={tag.id}
-                    className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
-                    style={{
-                      backgroundColor: `${tag.color}20`,
-                      color: tag.color,
-                    }}
-                  >
-                    {tag.name}
-                    <button
-                      onClick={() => handleRemoveTag(tag.id)}
-                      className="ml-1 rounded-full hover:bg-gray-200 h-4 w-4 flex items-center justify-center"
-                    >
-                      ×
-                    </button>
+                {selectedTags.length === 0 ? (
+                  <div className="text-sm text-gray-500 italic">
+                    Nenhuma etiqueta associada
                   </div>
-                ))}
+                ) : (
+                  selectedTags.map((tag) => (
+                    <div
+                      key={tag.id}
+                      className="flex items-center gap-1 px-2 py-1 rounded-full text-xs"
+                      style={{
+                        backgroundColor: `${tag.color}20`,
+                        color: tag.color,
+                      }}
+                    >
+                      {tag.name}
+                      <button
+                        onClick={() => handleRemoveTag(tag.id)}
+                        className="ml-1 rounded-full hover:bg-gray-200 h-4 w-4 flex items-center justify-center"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
               <Select onValueChange={handleAddTag}>
                 <SelectTrigger>
@@ -385,7 +437,15 @@ const ConversationDialog: React.FC<ConversationDialogProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   {availableTags
-                    .filter((tag) => !selectedTags.some((t) => t.id === tag.id))
+                    .filter(
+                      (tag) =>
+                        !selectedTags.some(
+                          (t) =>
+                            t.id === tag.id ||
+                            normalizeTagName(t.name) ===
+                              normalizeTagName(tag.name),
+                        ),
+                    )
                     .map((tag) => (
                       <SelectItem key={tag.id} value={tag.id}>
                         <div className="flex items-center">
@@ -397,6 +457,19 @@ const ConversationDialog: React.FC<ConversationDialogProps> = ({
                         </div>
                       </SelectItem>
                     ))}
+                  {availableTags.filter(
+                    (tag) =>
+                      !selectedTags.some(
+                        (t) =>
+                          t.id === tag.id ||
+                          normalizeTagName(t.name) ===
+                            normalizeTagName(tag.name),
+                      ),
+                  ).length === 0 && (
+                    <div className="px-2 py-1 text-sm text-gray-500 italic">
+                      Todas as etiquetas já foram adicionadas
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
             </div>

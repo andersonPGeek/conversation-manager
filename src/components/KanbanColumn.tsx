@@ -126,8 +126,8 @@ const KanbanColumn = ({
                 e.dataTransfer.setData("conversationId", conversation.id);
               }}
               onClick={() => {
-                // Abre o diálogo de conversa
-                onAddConversation(id);
+                // Abre o diálogo de conversa com o ID da conversa
+                onAddConversation(id, conversation.id);
               }}
             >
               <div className="flex justify-between items-start mb-2">

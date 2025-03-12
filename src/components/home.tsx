@@ -57,14 +57,30 @@ const Home: React.FC = () => {
     setTags(tags.filter((tag) => tag.id !== tagId));
   };
 
+  // State for filtered conversations
+  const [filteredConversations, setFilteredConversations] = useState<
+    Conversation[]
+  >([]);
+
   // Search handler
   const handleSearch = (query: string) => {
     setSearchQuery(query);
+    // Pass the search query to the KanbanBoard component
+    if (kanbanBoardRef.current) {
+      kanbanBoardRef.current.searchConversations(query);
+    }
   };
+
+  // Reference to KanbanBoard component
+  const kanbanBoardRef = React.useRef<any>(null);
 
   // Filter handler
   const handleFilterByTag = (tagId: string | null) => {
     setActiveTagFilter(tagId);
+    // Pass the tag filter to the KanbanBoard component
+    if (kanbanBoardRef.current) {
+      kanbanBoardRef.current.filterByTag(tagId);
+    }
   };
 
   // Handle adding a new conversation
@@ -94,7 +110,10 @@ const Home: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
-        <KanbanBoard onAddConversation={handleAddConversation} />
+        <KanbanBoard
+          ref={kanbanBoardRef}
+          onAddConversation={handleAddConversation}
+        />
       </main>
 
       {/* Tag Management Dialog */}
