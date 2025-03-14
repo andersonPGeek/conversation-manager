@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { sanitizeInput } from "../../utils/security";
+import { useAuth } from "../auth/AuthProvider";
 import { Plus, X, Edit, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -47,6 +49,7 @@ const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
   onDeleteTag = () => {},
 }) => {
   const [isCreating, setIsCreating] = useState(false);
+  const { user } = useAuth();
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState("#3B82F6");
@@ -79,7 +82,7 @@ const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
   const handleCreateTag = () => {
     if (newTagName.trim()) {
       onCreateTag({
-        name: newTagName.trim(),
+        name: sanitizeInput(newTagName.trim()),
         color: newTagColor,
       });
       resetForm();
@@ -90,7 +93,7 @@ const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
     if (editingTag && newTagName.trim()) {
       onUpdateTag({
         id: editingTag.id,
-        name: newTagName.trim(),
+        name: sanitizeInput(newTagName.trim()),
         color: newTagColor,
       });
       resetForm();
@@ -236,14 +239,26 @@ const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
                 </div>
               </div>
             ) : (
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={startCreating}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Criar Nova Etiqueta
-              </Button>
+              <div>
+                {(!user?.permissions ||
+                  user?.permissions.find((p) => p.id === "perm-4")
+                    ?.enabled) && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={startCreating}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Criar Nova Etiqueta
+                  </Button>
+                )}
+                {user?.permissions &&
+                  !user.permissions.find((p) => p.id === "perm-4")?.enabled && (
+                    <div className="text-center p-3 text-sm text-gray-500">
+                      Você não tem permissão para criar novas etiquetas.
+                    </div>
+                  )}
+              </div>
             )}
           </div>
         </div>

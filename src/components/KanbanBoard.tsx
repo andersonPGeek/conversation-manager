@@ -7,6 +7,7 @@ import { Dialog } from "./ui/dialog";
 import ColumnDialog from "./dialogs/ColumnDialog";
 import ConversationDialog from "./dialogs/ConversationDialog";
 import AttendantSidebar from "./AttendantSidebar";
+import { useNavigate } from "react-router-dom";
 
 interface Tag {
   id: string;
@@ -42,6 +43,7 @@ interface KanbanBoardProps {
 
 const KanbanBoard = React.forwardRef<any, KanbanBoardProps>(
   ({ initialColumns, onAddConversation, initialAttendants }, ref) => {
+    const navigate = useNavigate();
     // Conversas para cada atendente
     const attendantConversations = {
       "att-1": [
@@ -478,6 +480,42 @@ const KanbanBoard = React.forwardRef<any, KanbanBoardProps>(
 
     // Handle deleting a column
     const handleDeleteColumn = (columnId: string) => {
+      // Check if it's the first column
+      if (columns[0].id === columnId) {
+        alert("Não é possível excluir a primeira coluna.");
+        return;
+      }
+
+      // Find the column to delete
+      const columnToDelete = columns.find((column) => column.id === columnId);
+
+      if (!columnToDelete) return;
+
+      // Check if column has conversations
+      if (columnToDelete.conversations.length > 0) {
+        if (
+          !confirm(
+            `Esta coluna contém ${columnToDelete.conversations.length} conversa(s). Deseja realmente excluí-la? As conversas serão movidas para a coluna à esquerda.`,
+          )
+        ) {
+          return;
+        }
+
+        // Find the column to the left
+        const columnIndex = columns.findIndex(
+          (column) => column.id === columnId,
+        );
+        if (columnIndex <= 0) return; // Shouldn't happen since we check for first column
+
+        const leftColumnId = columns[columnIndex - 1].id;
+
+        // Move conversations to the left column
+        columnToDelete.conversations.forEach((conversation) => {
+          handleDrop(conversation.id, leftColumnId);
+        });
+      }
+
+      // Delete the column
       setColumns(columns.filter((column) => column.id !== columnId));
     };
 
@@ -576,6 +614,66 @@ const KanbanBoard = React.forwardRef<any, KanbanBoardProps>(
       );
     };
 
+    // Handle changing attendant for a conversation
+    const handleChangeAttendant = (
+      conversationId: string,
+      attendantId: string,
+      columnId: string,
+    ) => {
+      // Find the conversation and its current column
+      let sourceColumnId: string | null = null;
+      let conversationToMove: Conversation | null = null;
+
+      for (const column of columns) {
+        const conversation = column.conversations.find(
+          (c) => c.id === conversationId,
+        );
+        if (conversation) {
+          sourceColumnId = column.id;
+          conversationToMove = conversation;
+          break;
+        }
+      }
+
+      if (!sourceColumnId || !conversationToMove) {
+        return;
+      }
+
+      // Remove conversation from current attendant's column
+      setColumns(
+        columns.map((column) => {
+          if (column.id === sourceColumnId) {
+            return {
+              ...column,
+              conversations: column.conversations.filter(
+                (c) => c.id !== conversationId,
+              ),
+            };
+          }
+          return column;
+        }),
+      );
+
+      // In a real app, this would transfer the conversation to another attendant's board
+      console.log(
+        `Transferring conversation ${conversationId} to attendant ${attendantId} in column ${columnId}`,
+      );
+
+      // For demo purposes, we'll just show an alert
+      alert(
+        `Conversa transferida para ${attendants.find((a) => a.id === attendantId)?.name} na coluna ${columnId}`,
+      );
+    };
+
+    // Handle changing column for a conversation
+    const handleChangeColumn = (
+      conversationId: string,
+      targetColumnId: string,
+    ) => {
+      // This is essentially the same as handleDrop
+      handleDrop(conversationId, targetColumnId);
+    };
+
     // Handle attendant selection
     const handleSelectAttendant = (id: string) => {
       setActiveAttendant(id);
@@ -587,8 +685,8 @@ const KanbanBoard = React.forwardRef<any, KanbanBoardProps>(
 
     // Handle adding a new attendant
     const handleAddAttendant = () => {
-      // In a real app, this would open a dialog to add a new attendant
-      console.log("Add new attendant");
+      // Navigate to attendant management page
+      navigate("/attendant-management");
     };
 
     // Handle opening settings
@@ -682,6 +780,14 @@ const KanbanBoard = React.forwardRef<any, KanbanBoardProps>(
                     onDeleteColumn={handleDeleteColumn}
                     onAddConversation={handleAddConversation}
                     onDrop={handleDrop}
+                    onChangeAttendant={handleChangeAttendant}
+                    onChangeColumn={handleChangeColumn}
+                    availableAttendants={attendants}
+                    availableColumns={columns.map((c) => ({
+                      id: c.id,
+                      title: c.title,
+                    }))}
+                    currentAttendantId={activeAttendant}
                   />
                 ))}
                 <AddColumnButton onAddColumn={handleAddColumn} />

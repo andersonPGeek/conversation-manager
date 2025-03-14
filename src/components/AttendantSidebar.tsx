@@ -2,6 +2,14 @@ import React from "react";
 import { User, Settings, Plus } from "lucide-react";
 import { Button } from "./ui/button";
 import { Avatar, AvatarImage } from "./ui/avatar";
+import { useAuth } from "./auth/AuthProvider";
+import { useNavigate } from "react-router-dom";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
 interface Attendant {
   id: string;
@@ -44,6 +52,19 @@ const AttendantSidebar: React.FC<AttendantSidebarProps> = ({
   onAddAttendant = () => {},
   onOpenSettings = () => {},
 }) => {
+  // Get user from auth context
+  const { user } = useAuth ? useAuth() : { user: null };
+  const navigate = useNavigate();
+
+  // Only show sidebar for admin users
+  if (user?.role !== "admin") {
+    return null;
+  }
+
+  const handleAddAttendant = () => {
+    navigate("/attendant-management");
+  };
+
   return (
     <div className="w-20 bg-indigo-800 h-full flex flex-col items-center py-4">
       <div className="mb-8">
@@ -72,40 +93,70 @@ const AttendantSidebar: React.FC<AttendantSidebarProps> = ({
       </div>
 
       <div className="flex-1 w-full flex flex-col items-center space-y-4 overflow-y-auto">
-        {attendants.map((attendant) => (
-          <button
-            key={attendant.id}
-            className={`w-12 h-12 rounded-full flex items-center justify-center relative ${activeAttendant === attendant.id ? "ring-2 ring-white" : ""}`}
-            onClick={() => onSelectAttendant(attendant.id)}
-          >
-            <Avatar className="w-12 h-12">
-              <AvatarImage src={attendant.avatar} alt={attendant.name} />
-            </Avatar>
-            {attendant.active && (
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-indigo-800"></span>
-            )}
-          </button>
-        ))}
+        <TooltipProvider>
+          {attendants.map((attendant) => (
+            <Tooltip key={attendant.id}>
+              <TooltipTrigger asChild>
+                <button
+                  className={`w-12 h-12 rounded-full flex items-center justify-center relative ${activeAttendant === attendant.id ? "ring-2 ring-white" : ""}`}
+                  onClick={() => onSelectAttendant(attendant.id)}
+                >
+                  <Avatar className="w-12 h-12">
+                    <AvatarImage src={attendant.avatar} alt={attendant.name} />
+                  </Avatar>
+                  {attendant.active && (
+                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-indigo-800"></span>
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>{attendant.name}</p>
+                <p className="text-xs text-gray-400">
+                  {attendant.active ? "Online" : "Offline"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          ))}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-12 h-12 rounded-full bg-indigo-700 hover:bg-indigo-600 text-white"
-          onClick={onAddAttendant}
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-12 h-12 rounded-full bg-indigo-700 hover:bg-indigo-600 text-white"
+                onClick={handleAddAttendant}
+              >
+                <Plus className="h-6 w-6" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Adicionar Atendente</p>
+              <p className="text-xs text-gray-400">
+                R$ 49,90/mês por atendente
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <div className="mt-auto">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-12 h-12 rounded-full text-indigo-200 hover:bg-indigo-700 hover:text-white"
-          onClick={onOpenSettings}
-        >
-          <Settings className="h-6 w-6" />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-12 h-12 rounded-full text-indigo-200 hover:bg-indigo-700 hover:text-white"
+                onClick={onOpenSettings}
+              >
+                <Settings className="h-6 w-6" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Configurações</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );

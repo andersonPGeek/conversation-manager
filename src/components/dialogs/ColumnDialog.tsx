@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { sanitizeInput } from "../../utils/security";
 import {
   Dialog,
   DialogContent,
@@ -39,9 +40,11 @@ const ColumnDialog: React.FC<ColumnDialogProps> = ({
     e.preventDefault();
     if (columnName.trim()) {
       setIsSubmitting(true);
+      // Sanitize input before saving
+      const sanitizedColumnName = sanitizeInput(columnName);
       // Simulate API call
       setTimeout(() => {
-        onSave(columnName, isEditing ? columnId : undefined);
+        onSave(sanitizedColumnName, isEditing ? columnId : undefined);
         setIsSubmitting(false);
         onOpenChange(false);
       }, 500);

@@ -4,6 +4,9 @@ import KanbanBoard from "./KanbanBoard";
 import { Dialog } from "./ui/dialog";
 import TagManagementDialog from "./dialogs/TagManagementDialog";
 import ConversationDialog from "./dialogs/ConversationDialog";
+import SavedMessages, { SavedMessage } from "./SavedMessages";
+import { fetchWhatsAppConversations } from "../services/whatsappService";
+import { fetchInstagramConversations } from "../services/instagramService";
 
 interface Tag {
   id: string;
@@ -26,7 +29,12 @@ const Home: React.FC = () => {
   const [isTagDialogOpen, setIsTagDialogOpen] = useState(false);
   const [isConversationDialogOpen, setIsConversationDialogOpen] =
     useState(false);
+  const [isSavedMessagesDialogOpen, setIsSavedMessagesDialogOpen] =
+    useState(false);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
+
+  // State for saved messages
+  const [savedMessages, setSavedMessages] = useState<SavedMessage[]>([]);
 
   // State for tags
   const [tags, setTags] = useState<Tag[]>([
@@ -62,6 +70,20 @@ const Home: React.FC = () => {
     Conversation[]
   >([]);
 
+  // State for WhatsApp conversations
+  const [whatsappConversations, setWhatsappConversations] = useState<
+    Conversation[]
+  >([]);
+  const [isLoadingWhatsapp, setIsLoadingWhatsapp] = useState(false);
+  const [whatsappError, setWhatsappError] = useState("");
+
+  // State for Instagram conversations
+  const [instagramConversations, setInstagramConversations] = useState<
+    Conversation[]
+  >([]);
+  const [isLoadingInstagram, setIsLoadingInstagram] = useState(false);
+  const [instagramError, setInstagramError] = useState("");
+
   // Search handler
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -91,21 +113,103 @@ const Home: React.FC = () => {
     setIsConversationDialogOpen(true);
   };
 
+  // Handle opening saved messages dialog
+  const handleOpenSavedMessages = () => {
+    setIsSavedMessagesDialogOpen(true);
+  };
+
+  // Handle saving messages
+  const handleSaveSavedMessages = (messages: SavedMessage[]) => {
+    setSavedMessages(messages);
+    localStorage.setItem("savedMessages", JSON.stringify(messages));
+  };
+
   // Handle saving a new conversation
   const handleSaveConversation = (conversation: any) => {
     console.log("New conversation:", conversation);
     setIsConversationDialogOpen(false);
   };
 
+  // Load conversations from all configured platforms
+  useEffect(() => {
+    const loadWhatsAppConversations = async () => {
+      setIsLoadingWhatsapp(true);
+      setWhatsappError("");
+
+      try {
+        const conversations = await fetchWhatsAppConversations();
+        setWhatsappConversations(conversations);
+      } catch (error) {
+        console.error("Error fetching WhatsApp conversations:", error);
+        setWhatsappError(
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar conversas do WhatsApp",
+        );
+      } finally {
+        setIsLoadingWhatsapp(false);
+      }
+    };
+
+    const loadInstagramConversations = async () => {
+      setIsLoadingInstagram(true);
+      setInstagramError("");
+
+      try {
+        const conversations = await fetchInstagramConversations();
+        setInstagramConversations(conversations);
+      } catch (error) {
+        console.error("Error fetching Instagram conversations:", error);
+        setInstagramError(
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar conversas do Instagram",
+        );
+      } finally {
+        setIsLoadingInstagram(false);
+      }
+    };
+
+    // Load saved messages from localStorage
+    const loadSavedMessages = () => {
+      const savedMessagesJson = localStorage.getItem("savedMessages");
+      if (savedMessagesJson) {
+        try {
+          const messages = JSON.parse(savedMessagesJson);
+          setSavedMessages(messages);
+        } catch (error) {
+          console.error("Error loading saved messages:", error);
+        }
+      }
+    };
+
+    // Check which platforms are configured
+    const whatsappConfigured =
+      localStorage.getItem("whatsappConfigured") === "true";
+    const instagramConfigured =
+      localStorage.getItem("instagramConfigured") === "true";
+
+    if (whatsappConfigured) {
+      loadWhatsAppConversations();
+    }
+
+    if (instagramConfigured) {
+      loadInstagramConversations();
+    }
+
+    // Load saved messages
+    loadSavedMessages();
+  }, []);
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
       <Header
         onSearch={handleSearch}
-        onAddConversation={() => handleAddConversation()}
         onManageTags={() => setIsTagDialogOpen(true)}
         availableTags={tags}
         onFilterByTag={handleFilterByTag}
+        onOpenSavedMessages={handleOpenSavedMessages}
       />
 
       {/* Main Content */}
@@ -152,6 +256,20 @@ const Home: React.FC = () => {
             tags: [],
             columnId: selectedColumnId || "column-1",
           }}
+          savedMessages={savedMessages}
+        />
+      </Dialog>
+
+      {/* Saved Messages Dialog */}
+      <Dialog
+        open={isSavedMessagesDialogOpen}
+        onOpenChange={setIsSavedMessagesDialogOpen}
+      >
+        <SavedMessages
+          open={isSavedMessagesDialogOpen}
+          onOpenChange={setIsSavedMessagesDialogOpen}
+          savedMessages={savedMessages}
+          onSave={handleSaveSavedMessages}
         />
       </Dialog>
     </div>

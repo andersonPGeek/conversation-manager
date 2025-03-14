@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { User, MessageSquare, Tag, Send, Plus } from "lucide-react";
 import { Avatar } from "../ui/avatar";
 import { Button } from "../ui/button";
@@ -50,6 +50,7 @@ interface ConversationDialogProps {
   onClose?: () => void;
   initialColumnId?: string;
   isNewConversation?: boolean;
+  savedMessages?: Array<{ id: string; key: string; message: string }>;
 }
 
 const ConversationDialog: React.FC<ConversationDialogProps> = ({
@@ -102,12 +103,20 @@ const ConversationDialog: React.FC<ConversationDialogProps> = ({
   ],
   onSave = () => {},
   onClose = () => {},
+  savedMessages = [],
 }) => {
   const [activeTab, setActiveTab] = useState("messages");
   const [newMessage, setNewMessage] = useState("");
   const [selectedTags, setSelectedTags] = useState<Tag[]>(conversation.tags);
   const [selectedColumn, setSelectedColumn] = useState(conversation.columnId);
   const [contactName, setContactName] = useState(conversation.contactName);
+  const [showSavedMessageSuggestions, setShowSavedMessageSuggestions] =
+    useState(false);
+  const [filteredSavedMessages, setFilteredSavedMessages] = useState<
+    Array<{ id: string; key: string; message: string }>
+  >([]);
+  const [currentKey, setCurrentKey] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSendMessage = () => {
     if (newMessage.trim()) {
@@ -124,6 +133,8 @@ const ConversationDialog: React.FC<ConversationDialogProps> = ({
 
       conversation.messages = [...conversation.messages, newMsg];
       setNewMessage("");
+      setShowSavedMessageSuggestions(false);
+      setCurrentKey("");
 
       // Scroll to bottom of message container
       setTimeout(() => {
@@ -132,6 +143,50 @@ const ConversationDialog: React.FC<ConversationDialogProps> = ({
           container.scrollTop = container.scrollHeight;
         }
       }, 100);
+    }
+  };
+
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setNewMessage(value);
+
+    // Check if the message starts with a slash
+    if (value.includes("/")) {
+      const lastSlashIndex = value.lastIndexOf("/");
+      const afterSlash = value.substring(lastSlashIndex + 1).trim();
+
+      if (afterSlash && !afterSlash.includes(" ")) {
+        setCurrentKey(afterSlash);
+        const filtered = savedMessages.filter((msg) =>
+          msg.key.toLowerCase().startsWith(afterSlash.toLowerCase()),
+        );
+        setFilteredSavedMessages(filtered);
+        setShowSavedMessageSuggestions(filtered.length > 0);
+      } else {
+        setShowSavedMessageSuggestions(false);
+      }
+    } else {
+      setShowSavedMessageSuggestions(false);
+    }
+  };
+
+  const insertSavedMessage = (message: string) => {
+    // Replace the /key with the actual message
+    const lastSlashIndex = newMessage.lastIndexOf("/");
+    const newText = newMessage.substring(0, lastSlashIndex) + message;
+
+    setNewMessage(newText);
+    setShowSavedMessageSuggestions(false);
+
+    // Focus the textarea and place cursor at the end
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = newText.length;
+          textareaRef.current.selectionEnd = newText.length;
+        }
+      }, 0);
     }
   };
 
@@ -262,23 +317,47 @@ const ConversationDialog: React.FC<ConversationDialogProps> = ({
             </div>
 
             <div className="p-3 border-t mt-auto">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSendMessage();
-                }}
-                className="flex gap-2"
-              >
-                <Textarea
-                  placeholder="Digite sua mensagem..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  className="min-h-[60px] resize-none"
-                />
-                <Button type="submit" size="icon" disabled={!newMessage.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </form>
+              <div className="relative">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }}
+                  className="flex gap-2"
+                >
+                  <Textarea
+                    ref={textareaRef}
+                    placeholder="Digite sua mensagem... (use / para mensagens rápidas)"
+                    value={newMessage}
+                    onChange={handleMessageChange}
+                    className="min-h-[60px] resize-none"
+                  />
+                  <Button
+                    type="submit"
+                    size="icon"
+                    disabled={!newMessage.trim()}
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </form>
+
+                {showSavedMessageSuggestions && (
+                  <div className="absolute bottom-full left-0 w-full bg-white border rounded-md shadow-lg max-h-[200px] overflow-y-auto z-10 mb-1">
+                    {filteredSavedMessages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className="p-2 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
+                        onClick={() => insertSavedMessage(msg.message)}
+                      >
+                        <div className="font-medium text-sm">/{msg.key}</div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {msg.message}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </TabsContent>
 
